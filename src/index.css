@@ -22,8 +22,8 @@
     background-size: 400% 400%;
   }
   .bg-mesh-dark {
-    /* Cooler neon/cyber gradient for dark mode */
-    background: linear-gradient(-45deg, #09090b, #0f172a, #1e1b4b, #2e1065, #020617);
+    /* Slightly lighter neon/cyber gradient for dark mode to prevent black crushing on monitors */
+    background: linear-gradient(-45deg, #0f172a, #1e1b4b, #2e1065, #172554, #111827);
     background-size: 400% 400%;
   }
   

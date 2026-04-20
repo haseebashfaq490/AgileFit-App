@@ -285,7 +285,7 @@ export default function App() {
             initial={{ opacity: 0, y: 30, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-            className="max-w-2xl w-full glass-panel p-10 rounded-[2rem] relative z-10"
+            className="max-w-2xl w-full glass-panel p-6 md:p-10 rounded-3xl md:rounded-[2rem] relative z-10"
           >
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
               <div className="flex items-center gap-5">
@@ -416,7 +416,7 @@ export default function App() {
 
   return (
     <div className={theme === 'dark' ? 'dark' : ''}>
-      <div className="h-screen w-full flex bg-mesh-light dark:bg-mesh-dark animate-mesh text-slate-800 dark:text-slate-200 font-sans selection:bg-indigo-500/20 transition-colors duration-1000 relative">
+      <div className="h-screen w-full flex flex-col md:flex-row bg-mesh-light dark:bg-mesh-dark animate-mesh text-slate-800 dark:text-slate-200 font-sans selection:bg-indigo-500/20 transition-colors duration-1000 relative">
         
         {/* Background Blobs for Main App */}
         <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none z-0">
@@ -425,7 +425,7 @@ export default function App() {
         </div>
 
         {/* Sidebar Navigation */}
-        <aside className="w-68 glass-panel border-r-0 border-r-white/20 dark:border-r-white/5 flex flex-col shrink-0 transition-colors duration-500 z-20 shadow-2xl">
+        <aside className="hidden md:flex w-68 glass-panel border-r-0 border-r-white/20 dark:border-r-white/5 flex-col shrink-0 transition-colors duration-500 z-20 shadow-2xl">
           <div className="h-24 flex items-center px-8 border-b border-slate-200/50 dark:border-white/5">
             <div className="flex items-center gap-4">
               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-500/25">
@@ -493,20 +493,45 @@ export default function App() {
           </div>
         </aside>
 
+      {/* Mobile Bottom Navigation */}
+      <nav className="md:hidden fixed bottom-0 left-0 w-full glass-panel border-t border-t-white/20 dark:border-t-white/5 z-50 flex items-center justify-around px-2 py-2 pb-safe shadow-[0_-10px_20px_rgba(0,0,0,0.1)]">
+        <button onClick={() => setCurrentTab('dashboard')} className={cn("p-2 rounded-xl flex flex-col items-center gap-1 transition-all", currentTab === 'dashboard' ? "text-indigo-600 dark:text-indigo-400 bg-indigo-50/50 dark:bg-indigo-500/10" : "text-slate-500 dark:text-slate-400 hover:text-slate-900")}>
+          <LayoutDashboard className="w-5 h-5" />
+          <span className="text-[10px] font-bold">Dashboard</span>
+        </button>
+        <button onClick={() => setCurrentTab('backlog')} className={cn("p-2 rounded-xl flex flex-col items-center gap-1 transition-all relative", currentTab === 'backlog' ? "text-indigo-600 dark:text-indigo-400 bg-indigo-50/50 dark:bg-indigo-500/10" : "text-slate-500 dark:text-slate-400 hover:text-slate-900")}>
+          <ListTodo className="w-5 h-5" />
+          <span className="text-[10px] font-bold">Backlog</span>
+          {backlogCount > 0 && <span className="absolute top-1 right-2 w-2 h-2 bg-indigo-500 rounded-full"></span>}
+        </button>
+        <button onClick={() => setCurrentTab('sprint')} className={cn("p-2 rounded-xl flex flex-col items-center gap-1 transition-all relative", currentTab === 'sprint' ? "text-indigo-600 dark:text-indigo-400 bg-indigo-50/50 dark:bg-indigo-500/10" : "text-slate-500 dark:text-slate-400 hover:text-slate-900")}>
+          <CalendarDays className="w-5 h-5" />
+          <span className="text-[10px] font-bold">Sprint</span>
+          {isSprintActive && <span className="absolute top-1 right-2 w-2 h-2 bg-emerald-500 rounded-full"></span>}
+        </button>
+        <div className="w-[1px] h-8 bg-slate-200 dark:bg-white/10 mx-1"></div>
+        <button onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')} className="p-3 rounded-xl text-slate-500 hover:text-slate-900 dark:text-slate-400">
+           {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+        </button>
+        <button onClick={() => setSettingsModalOpen(true)} className="p-3 rounded-xl text-slate-500 hover:text-slate-900 dark:text-slate-400">
+          <Settings className="w-5 h-5" />
+        </button>
+      </nav>
+
       {/* Main Content Area */}
-      <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative z-10 p-2 md:p-6">
-        <div className="glass-panel flex-1 rounded-[2.5rem] flex flex-col overflow-hidden relative shadow-2xl border-white/40 dark:border-white/10">
-          <header className="h-24 bg-white/40 dark:bg-slate-950/40 backdrop-blur-sm border-b border-slate-200/50 dark:border-white/5 flex items-center justify-between px-10 shrink-0 z-10 sticky top-0 transition-colors duration-500">
-            <div>
-              <h2 className="text-2xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-slate-900 to-slate-700 dark:from-white dark:to-slate-300 capitalize">
+      <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative z-10 p-2 pb-24 md:p-6 md:pb-6">
+        <div className="glass-panel flex-1 rounded-3xl md:rounded-[2.5rem] flex flex-col overflow-hidden relative shadow-2xl border-white/40 dark:border-white/10">
+          <header className="h-24 bg-white/40 dark:bg-slate-950/40 backdrop-blur-sm border-b border-slate-200/50 dark:border-white/5 flex flex-col md:flex-row items-center justify-between px-6 md:px-10 shrink-0 z-10 sticky top-0 transition-colors duration-500 py-3 md:py-0 gap-3 md:gap-0">
+            <div className="w-full text-center md:text-left flex flex-col items-center md:items-start whitespace-nowrap overflow-hidden">
+              <h2 className="text-xl md:text-2xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-slate-900 to-slate-700 dark:from-white dark:to-slate-300 capitalize truncate w-full">
                 {currentTab.replace('-', ' ')}
               </h2>
-              <p className="text-sm text-slate-600 dark:text-slate-400 font-medium truncate max-w-lg mt-1 tracking-wide" title={epic}>
+              <p className="hidden md:block text-sm text-slate-600 dark:text-slate-400 font-medium truncate max-w-lg mt-1 tracking-wide" title={epic}>
                 <span className="opacity-70">Epic:</span> {epic}
               </p>
             </div>
             
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 md:gap-4 shrink-0">
               {isSprintActive ? (
                 <button 
                   onClick={() => setRetroModalOpen(true)}
@@ -525,7 +550,7 @@ export default function App() {
             </div>
           </header>
 
-          <div className="flex-1 overflow-y-auto p-10 bg-gradient-to-b from-transparent to-slate-50/50 dark:to-slate-950/20">
+          <div className="flex-1 overflow-y-auto p-4 md:p-10 bg-gradient-to-b from-transparent to-slate-50/50 dark:to-slate-950/20">
             <div className="max-w-6xl mx-auto h-full">
 
             {/* TAB: DASHBOARD */}
