@@ -10,8 +10,16 @@ export default defineConfig(({mode}) => {
   // We need to either grab from process.env OR from the .env fallback
   const apiKey = process.env.GEMINI_API_KEY || env.GEMINI_API_KEY || "";
 
+  // Set the base path dynamically for GitHub Pages.
+  // GITHUB_REPOSITORY is automatically set by GitHub Actions (e.g., "username/repo-name")
+  let basePath = './'; // Default fallback
+  if (process.env.GITHUB_REPOSITORY) {
+    const repoName = process.env.GITHUB_REPOSITORY.split('/')[1];
+    basePath = `/${repoName}/`;
+  }
+
   return {
-    base: './',
+    base: basePath,
     plugins: [react(), tailwindcss()],
     define: {
       'process.env.GEMINI_API_KEY': JSON.stringify(apiKey),

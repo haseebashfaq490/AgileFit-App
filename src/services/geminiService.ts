@@ -1,11 +1,21 @@
 import { GoogleGenAI, Type } from "@google/genai";
 
-// Initialize Gemini API
-// It will pick up process.env.GEMINI_API_KEY thanks to Vite's define plugin OR you can hardcode here temporarily
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+// Initialize Gemini API lazily to prevent module-level crash if key is missing during build
+let aiClient: GoogleGenAI | null = null;
+const getAI = () => {
+  if (!aiClient) {
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      console.error("WARNING: GEMINI_API_KEY is missing. AI features will not work.");
+    }
+    aiClient = new GoogleGenAI({ apiKey: apiKey || "MISSING_KEY" });
+  }
+  return aiClient;
+};
 
 export const generateEpicBacklog = async (userData: any) => {
   const { epic, age, gender, weight, injuries, epicDeadline } = userData;
+  const ai = getAI();
   const response = await ai.models.generateContent({
     model: 'gemini-2.5-flash',
     contents: `You are an elite Agile fitness coach.
@@ -43,6 +53,7 @@ export const generateEpicBacklog = async (userData: any) => {
 
 export const planSprint = async (sprintData: any) => {
   const { scheduleText, backlogContext, sprintLength, formattedDeadline } = sprintData;
+  const ai = getAI();
   const response = await ai.models.generateContent({
     model: 'gemini-2.5-flash',
     contents: `You are pulling workouts from an Agile Backlog into the Active Sprint.
@@ -77,6 +88,7 @@ export const planSprint = async (sprintData: any) => {
 
 export const completeSprintRetro = async (retroData: any) => {
   const { retroContextWorkouts, retroText } = retroData;
+  const ai = getAI();
   const response = await ai.models.generateContent({
     model: 'gemini-2.5-flash',
     contents: `You are an Agile Fitness Scrum Master running a Sprint Retrospective.
