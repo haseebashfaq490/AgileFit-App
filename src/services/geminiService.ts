@@ -14,7 +14,7 @@ const getAI = () => {
 };
 
 export const generateEpicBacklog = async (userData: any) => {
-  const { epic, age, gender, weight, injuries, epicDeadline } = userData;
+  const { epic, age, gender, weight, height, injuries, epicDeadline } = userData;
   const ai = getAI();
   const response = await ai.models.generateContent({
     model: 'gemini-3-flash-preview',
@@ -23,6 +23,7 @@ export const generateEpicBacklog = async (userData: any) => {
       - Age: ${age || 'Not specified'}
       - Gender: ${gender || 'Not specified'}
       - Weight: ${weight || 'Not specified'}
+      - Height: ${height || 'Not specified'}
       - Injuries & Health Conditions: ${injuries || 'None'}
       
       The user's Epic Goal is: ${epic}. 

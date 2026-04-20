@@ -93,6 +93,7 @@ export default function App() {
   const [age, setAge] = useLocalStorage<string>('af_age', '');
   const [gender, setGender] = useLocalStorage<string>('af_gender', '');
   const [weight, setWeight] = useLocalStorage<string>('af_weight', '');
+  const [height, setHeight] = useLocalStorage<string>('af_height', '');
   const [injuries, setInjuries] = useLocalStorage<string>('af_injuries', '');
   const [isEpicSet, setIsEpicSet] = useLocalStorage<boolean>('af_isEpicSet', false);
   const [workouts, setWorkouts] = useLocalStorage<Workout[]>('af_workouts', []);
@@ -184,7 +185,7 @@ export default function App() {
     setIsLoading(true);
     setError(null);
     try {
-      const parsedWorkouts = await generateEpicBacklog({ epic, age, gender, weight, injuries, epicDeadline });
+      const parsedWorkouts = await generateEpicBacklog({ epic, age, gender, weight, height, injuries, epicDeadline });
       
       const newWorkouts = parsedWorkouts.map((w: any) => ({ ...w, status: 'backlog' as const }));
       setWorkouts(newWorkouts);
@@ -371,7 +372,7 @@ export default function App() {
               </div>
 
               {/* Personal Details Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label className="text-sm font-semibold text-slate-700 dark:text-slate-300 ml-1">Age</label>
                   <input 
@@ -395,6 +396,16 @@ export default function App() {
                     <option value="Non-binary">Non-binary</option>
                     <option value="Prefer not to say">Prefer not to say</option>
                   </select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-slate-700 dark:text-slate-300 ml-1">Height</label>
+                  <input 
+                    type="text"
+                    value={height}
+                    onChange={(e) => setHeight(e.target.value)}
+                    placeholder="e.g. 5'10&quot; or 178 cm"
+                    className="w-full h-11 px-4 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-800 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all text-sm"
+                  />
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-semibold text-slate-700 dark:text-slate-300 ml-1">Weight</label>
