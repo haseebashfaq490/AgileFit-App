@@ -4,7 +4,6 @@
  */
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { GoogleGenAI, Type } from '@google/genai';
 import { 
   Target, Activity, Zap, Play, Clock, CheckCircle2, 
   ChevronRight, Info, LayoutDashboard, ListTodo, 
@@ -74,20 +73,7 @@ export default function App() {
   // Settings State
   const [sprintLength, setSprintLength] = useState(7);
   const [theme, setTheme] = useState<'light' | 'dark'>('dark');
-  const [customApiKey, setCustomApiKey] = useState(() => localStorage.getItem('AGILEFIT_GEMINI_API_KEY') || '');
 
-  useEffect(() => {
-    localStorage.setItem('AGILEFIT_GEMINI_API_KEY', customApiKey);
-  }, [customApiKey]);
-
-  const getAI = () => {
-    const key = customApiKey || process.env.GEMINI_API_KEY;
-    if (!key) {
-      throw new Error("Missing Gemini API Key. Please add it in Settings.");
-    }
-    return new GoogleGenAI({ apiKey: key });
-  };
-  
   // UI State
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -151,44 +137,23 @@ export default function App() {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await getAI().models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: `You are an elite Agile fitness coach.
-          User Profile:
-          - Age: ${age || 'Not specified'}
-          - Gender: ${gender || 'Not specified'}
-          - Weight: ${weight || 'Not specified'}
-          - Injuries & Health Conditions: ${injuries || 'None'}
-          
-          The user's Epic Goal is: ${epic}. 
-          ${epicDeadline ? `The strict ultimate deadline for this Epic is: ${epicDeadline}.` : ''}
-          Generate a comprehensive "Product Backlog" of workouts needed to achieve this over multiple weekly sprints. ${epicDeadline ? 'Scale the number of workouts linearly based on the deadline timeframe.' : 'Provide exactly 15 varied workouts.'}
-          Provide structured JSON with realistic durations (minutes) that are safe and appropriate for their profile.`,
-        config: {
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.ARRAY,
-            items: {
-              type: Type.OBJECT,
-              properties: {
-                id: { type: Type.STRING, description: "A unique 6-char alphanumeric ID" },
-                title: { type: Type.STRING },
-                type: { type: Type.STRING, description: "E.g., Strength, Cardio, Mobility, HIIT" },
-                duration: { type: Type.INTEGER },
-                description: { type: Type.STRING }
-              },
-              required: ["id", "title", "type", "duration", "description"]
-            }
-          }
-        }
+      const res = await fetch("/api/generate-epic", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ epic, age, gender, weight, injuries, epicDeadline })
       });
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || "Failed to generate epic.");
+      }
       
-      const newWorkouts = JSON.parse(response.text || '[]').map((w: any) => ({ ...w, status: 'backlog' as const }));
+      const parsedWorkouts = await res.json();
+      const newWorkouts = parsedWorkouts.map((w: any) => ({ ...w, status: 'backlog' as const }));
       setWorkouts(newWorkouts);
       setIsEpicSet(true);
       setCurrentTab('backlog');
     } catch (err: any) {
-      setError("Failed to create Epic backlog. Please try again.");
+      setError(err.message || "Failed to create Epic backlog. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -208,36 +173,17 @@ export default function App() {
     const formattedDeadline = targetDate.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' });
 
     try {
-      const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: `You are pulling workouts from an Agile Backlog into the Active Sprint.
-          The user's schedule constraints for the timeframe starting today and ending on the strict deadline of ${formattedDeadline} (${sprintLength} Days timeframe) are: "${scheduleText}".
-          Available Backlog Items: ${JSON.stringify(backlogContext)}.
-          
-          Select the right amount of workouts from the backlog that best fit this schedule.
-          
-          CRITICAL INSTRUCTIONS:
-          1. EXACT AVAILABILITY: If the user says they are busy or unavailable on a specific day (like "Busy on Friday"), DO NOT schedule any workouts on that exact day.
-          2. CONSISTENT FORMATTING: Never mix day formats! If the user mentions days of the week (e.g., "Friday", "weekends"), you MUST output ALL days as explicit days of the week (e.g., "Monday", "Tuesday", "Wednesday"). If they do not mention days of the week, use ONLY generic days (e.g., "Day 1", "Day 2"). Do NOT output a mix of "Friday" and "Day 1".
-          
-          Return valid JSON mapping workout IDs to days. Do not invent new IDs.`,
-        config: {
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.ARRAY,
-            items: {
-              type: Type.OBJECT,
-              properties: {
-                workoutId: { type: Type.STRING },
-                day: { type: Type.STRING, description: "e.g., Monday, Tuesday, or Day 1" }
-              },
-              required: ["workoutId", "day"]
-            }
-          }
-        }
+      const res = await fetch("/api/plan-sprint", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ scheduleText, backlogContext, sprintLength, formattedDeadline })
       });
-      
-      const selections: { workoutId: string, day: string }[] = JSON.parse(response.text || '[]');
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || "Failed to plan sprint.");
+      }
+
+      const selections: { workoutId: string, day: string }[] = await res.json();
       
       // Update local state
       setWorkouts(prev => prev.map(w => {
@@ -253,7 +199,7 @@ export default function App() {
       setSprintEndDate(targetDate.toISOString());
       setCurrentTab('sprint');
     } catch (err: any) {
-      setError("Sprint planning failed. Ensure your backlog has remaining items.");
+      setError(err.message || "Sprint planning failed. Ensure your backlog has remaining items.");
     } finally {
       setIsLoading(false);
     }
@@ -274,42 +220,17 @@ export default function App() {
     }));
 
     try {
-      const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: `You are an Agile Fitness Scrum Master running a Sprint Retrospective.
-          Sprint Results: ${JSON.stringify(retroContextWorkouts)}.
-          User Feedback: "${retroText}".
-          
-          Provide exactly TWO sharp, analytical insights based on their feedback and completion rate.
-          Also, generate TWO NEW adjusted workouts to push to their Product Backlog based on this learning 
-          (e.g., if they were tired, add a recovery session; if it was easy, add a harder session).`,
-        config: {
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              insights: { type: Type.ARRAY, items: { type: Type.STRING } },
-              newWorkouts: {
-                type: Type.ARRAY,
-                items: {
-                  type: Type.OBJECT,
-                  properties: {
-                    id: { type: Type.STRING },
-                    title: { type: Type.STRING },
-                    type: { type: Type.STRING },
-                    duration: { type: Type.INTEGER },
-                    description: { type: Type.STRING }
-                  },
-                  required: ["id", "title", "type", "duration", "description"]
-                }
-              }
-            },
-            required: ["insights", "newWorkouts"]
-          }
-        }
+      const res = await fetch("/api/complete-sprint", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ retroContextWorkouts, retroText })
       });
-      
-      const result = JSON.parse(response.text || '{}');
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || "Failed to complete sprint.");
+      }
+
+      const result = await res.json();
       const newBacklogItems = (result.newWorkouts || []).map((w: any) => ({ ...w, status: 'backlog' as const }));
       
       // Update historical data
@@ -343,7 +264,7 @@ export default function App() {
       setTimeout(() => setPlanningModalOpen(true), 300);
       
     } catch (err: any) {
-      setError("Retrospective generation failed. Please try again.");
+      setError(err.message || "Retrospective generation failed. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -488,7 +409,11 @@ export default function App() {
                   </>
                 )}
               </button>
-              {error && <p className="text-red-500 text-sm text-center font-medium flex items-center justify-center gap-1.5"><Info className="w-4 h-4"/> {error}</p>}
+              {error && (
+                <div className="mt-6 p-4 bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 rounded-xl flex items-center justify-center gap-2 font-medium border border-rose-200 dark:border-rose-500/20 text-sm break-words whitespace-pre-wrap text-center">
+                  <Info className="w-5 h-5 shrink-0" /> {error}
+                </div>
+              )}
             </form>
           </motion.div>
         </div>
@@ -919,21 +844,7 @@ export default function App() {
                  <p className="text-[10px] text-slate-500 dark:text-slate-400">Changing this affects the number of days you plan for in future sprints.</p>
               </div>
 
-              <div className="space-y-3">
-                 <label className="text-sm font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-2">
-                   <Key className="w-4 h-4" /> Custom Gemini API Key
-                 </label>
-                 <input 
-                   type="password" 
-                   value={customApiKey} 
-                   onChange={(e) => setCustomApiKey(e.target.value)}
-                   placeholder="AI Studio environments don't need this."
-                   className="w-full h-11 px-4 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-800 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all text-sm mb-1"
-                 />
-                 <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-tight">
-                   If you are deploying this app outside of the AI Studio sandbox (e.g. GitHub Pages), enter your free Gemini API key here so the AI Coach can function. Saved locally to your browser.
-                 </p>
-              </div>
+
 
               <div className="space-y-3">
                  <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Theme Preference</label>
