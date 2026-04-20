@@ -17,7 +17,7 @@ export const generateEpicBacklog = async (userData: any) => {
   const { epic, age, gender, weight, injuries, epicDeadline } = userData;
   const ai = getAI();
   const response = await ai.models.generateContent({
-    model: 'gemini-2.5-flash',
+    model: 'gemini-3-flash-preview',
     contents: `You are an elite Agile fitness coach.
       User Profile:
       - Age: ${age || 'Not specified'}
@@ -55,7 +55,7 @@ export const planSprint = async (sprintData: any) => {
   const { scheduleText, backlogContext, sprintLength, formattedDeadline } = sprintData;
   const ai = getAI();
   const response = await ai.models.generateContent({
-    model: 'gemini-2.5-flash',
+    model: 'gemini-3-flash-preview',
     contents: `You are pulling workouts from an Agile Backlog into the Active Sprint.
       The user's schedule constraints for the timeframe starting today and ending on the strict deadline of ${formattedDeadline} (${sprintLength} Days timeframe) are: "${scheduleText}".
       Available Backlog Items: ${JSON.stringify(backlogContext)}.
@@ -90,7 +90,7 @@ export const completeSprintRetro = async (retroData: any) => {
   const { retroContextWorkouts, retroText } = retroData;
   const ai = getAI();
   const response = await ai.models.generateContent({
-    model: 'gemini-2.5-flash',
+    model: 'gemini-3-flash-preview',
     contents: `You are an Agile Fitness Scrum Master running a Sprint Retrospective.
       Sprint Results: ${JSON.stringify(retroContextWorkouts)}.
       User Feedback: "${retroText}".
