@@ -145,7 +145,13 @@ export default function App() {
       setIsEpicSet(true);
       setCurrentTab('backlog');
     } catch (err: any) {
-      setError(err.message || "Failed to create Epic backlog. Please try again.");
+      if (err?.message?.includes("503") || err?.status === 503 || err?.message?.includes("UNAVAILABLE")) {
+        setError("The free-tier AI servers are currently experiencing peak traffic. Please try generating again in a couple of minutes!");
+      } else if (err?.message?.includes("400") || err?.status === 400 || err?.message?.includes("API key not valid")) {
+        setError("Your API key is invalid or missing. Ensure you updated the GEMINI_API_KEY secret in your GitHub repository settings!");
+      } else {
+        setError(err.message || "Failed to create Epic backlog. Please try again.");
+      }
     } finally {
       setIsLoading(false);
     }
@@ -181,7 +187,13 @@ export default function App() {
       setSprintEndDate(targetDate.toISOString());
       setCurrentTab('sprint');
     } catch (err: any) {
-      setError(err.message || "Sprint planning failed. Ensure your backlog has remaining items.");
+      if (err?.message?.includes("503") || err?.status === 503 || err?.message?.includes("UNAVAILABLE")) {
+        setError("The free-tier AI servers are experiencing high traffic. Please try generating again in a few minutes!");
+      } else if (err?.message?.includes("400") || err?.status === 400 || err?.message?.includes("API key not valid")) {
+        setError("Your API key is invalid or missing. Ensure you updated the GEMINI_API_KEY secret in your GitHub repository settings!");
+      } else {
+        setError(err.message || "Sprint planning failed. Ensure your backlog has remaining items.");
+      }
     } finally {
       setIsLoading(false);
     }
@@ -236,7 +248,13 @@ export default function App() {
       setTimeout(() => setPlanningModalOpen(true), 300);
       
     } catch (err: any) {
-      setError(err.message || "Retrospective generation failed. Please try again.");
+      if (err?.message?.includes("503") || err?.status === 503 || err?.message?.includes("UNAVAILABLE")) {
+        setError("The free-tier AI servers are experiencing high traffic. Please try submitting your retro again in a few minutes!");
+      } else if (err?.message?.includes("400") || err?.status === 400 || err?.message?.includes("API key not valid")) {
+        setError("Your API key is invalid or missing. Ensure you updated the GEMINI_API_KEY secret in your GitHub repository settings!");
+      } else {
+        setError(err.message || "Retrospective generation failed. Please try again.");
+      }
     } finally {
       setIsLoading(false);
     }
