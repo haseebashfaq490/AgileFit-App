@@ -54,26 +54,54 @@ const TYPE_COLORS: Record<string, string> = {
   HIIT: 'text-orange-700 bg-orange-50 border-orange-200 dark:bg-orange-500/10 dark:text-orange-400 dark:border-orange-500/20',
 };
 
+// --- Local Storage Hook ---
+function useLocalStorage<T>(key: string, initialValue: T): [T, React.Dispatch<React.SetStateAction<T>>] {
+  const [storedValue, setStoredValue] = useState<T>(() => {
+    if (typeof window === "undefined") return initialValue;
+    try {
+      const item = window.localStorage.getItem(key);
+      return item ? JSON.parse(item) : initialValue;
+    } catch (error) {
+      console.warn(`Error reading localStorage key "${key}":`, error);
+      return initialValue;
+    }
+  });
+
+  const setValue: React.Dispatch<React.SetStateAction<T>> = (value) => {
+    try {
+      const valueToStore = value instanceof Function ? value(storedValue) : value;
+      setStoredValue(valueToStore);
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem(key, JSON.stringify(valueToStore));
+      }
+    } catch (error) {
+      console.warn(`Error setting localStorage key "${key}":`, error);
+    }
+  };
+
+  return [storedValue, setValue];
+}
+
 // --- Main App Component ---
 export default function App() {
-  const [currentTab, setCurrentTab] = useState<'dashboard' | 'backlog' | 'sprint'>('dashboard');
+  const [currentTab, setCurrentTab] = useLocalStorage<'dashboard' | 'backlog' | 'sprint'>('af_tab', 'dashboard');
   
   // App State
-  const [epic, setEpic] = useState<string>('');
-  const [epicDeadline, setEpicDeadline] = useState<string>('');
-  const [age, setAge] = useState<string>('');
-  const [gender, setGender] = useState<string>('');
-  const [weight, setWeight] = useState<string>('');
-  const [injuries, setInjuries] = useState<string>('');
-  const [isEpicSet, setIsEpicSet] = useState(false);
-  const [workouts, setWorkouts] = useState<Workout[]>([]);
-  const [history, setHistory] = useState<SprintHistory[]>([]);
-  const [currentSprintNum, setCurrentSprintNum] = useState(1);
-  const [sprintEndDate, setSprintEndDate] = useState<string | null>(null);
+  const [epic, setEpic] = useLocalStorage<string>('af_epic', '');
+  const [epicDeadline, setEpicDeadline] = useLocalStorage<string>('af_deadline', '');
+  const [age, setAge] = useLocalStorage<string>('af_age', '');
+  const [gender, setGender] = useLocalStorage<string>('af_gender', '');
+  const [weight, setWeight] = useLocalStorage<string>('af_weight', '');
+  const [injuries, setInjuries] = useLocalStorage<string>('af_injuries', '');
+  const [isEpicSet, setIsEpicSet] = useLocalStorage<boolean>('af_isEpicSet', false);
+  const [workouts, setWorkouts] = useLocalStorage<Workout[]>('af_workouts', []);
+  const [history, setHistory] = useLocalStorage<SprintHistory[]>('af_history', []);
+  const [currentSprintNum, setCurrentSprintNum] = useLocalStorage<number>('af_sprintNum', 1);
+  const [sprintEndDate, setSprintEndDate] = useLocalStorage<string | null>('af_sprintEnd', null);
   
   // Settings State
-  const [sprintLength, setSprintLength] = useState(7);
-  const [theme, setTheme] = useState<'light' | 'dark'>('dark');
+  const [sprintLength, setSprintLength] = useLocalStorage<number>('af_sprintLength', 7);
+  const [theme, setTheme] = useLocalStorage<'light' | 'dark'>('af_theme', 'dark');
 
   // UI State
   const [isLoading, setIsLoading] = useState(false);
@@ -871,6 +899,20 @@ export default function App() {
                      <Moon className="w-4 h-4" /> Dark
                    </button>
                  </div>
+              </div>
+
+              <div className="pt-4 border-t border-slate-100 dark:border-white/10">
+                <button 
+                  onClick={() => {
+                    if (window.confirm("Are you sure you want to reset your entire Epic and Sprint progress? This cannot be undone.")) {
+                      window.localStorage.clear();
+                      window.location.reload();
+                    }
+                  }}
+                  className="w-full py-2.5 rounded-xl border border-rose-200 dark:border-rose-500/20 text-rose-600 dark:text-rose-400 font-semibold text-sm hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors"
+                >
+                  Reset Entire Epic
+                </button>
               </div>
 
             </div>
