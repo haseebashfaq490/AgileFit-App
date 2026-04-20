@@ -17,6 +17,7 @@ import {
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { motion, AnimatePresence } from 'motion/react';
+import { generateEpicBacklog, planSprint, completeSprintRetro } from './services/geminiService';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -137,17 +138,8 @@ export default function App() {
     setIsLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/generate-epic", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ epic, age, gender, weight, injuries, epicDeadline })
-      });
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.error || "Failed to generate epic.");
-      }
+      const parsedWorkouts = await generateEpicBacklog({ epic, age, gender, weight, injuries, epicDeadline });
       
-      const parsedWorkouts = await res.json();
       const newWorkouts = parsedWorkouts.map((w: any) => ({ ...w, status: 'backlog' as const }));
       setWorkouts(newWorkouts);
       setIsEpicSet(true);
@@ -173,17 +165,7 @@ export default function App() {
     const formattedDeadline = targetDate.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' });
 
     try {
-      const res = await fetch("/api/plan-sprint", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ scheduleText, backlogContext, sprintLength, formattedDeadline })
-      });
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.error || "Failed to plan sprint.");
-      }
-
-      const selections: { workoutId: string, day: string }[] = await res.json();
+      const selections: { workoutId: string, day: string }[] = await planSprint({ scheduleText, backlogContext, sprintLength, formattedDeadline });
       
       // Update local state
       setWorkouts(prev => prev.map(w => {
@@ -220,17 +202,7 @@ export default function App() {
     }));
 
     try {
-      const res = await fetch("/api/complete-sprint", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ retroContextWorkouts, retroText })
-      });
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.error || "Failed to complete sprint.");
-      }
-
-      const result = await res.json();
+      const result = await completeSprintRetro({ retroContextWorkouts, retroText });
       const newBacklogItems = (result.newWorkouts || []).map((w: any) => ({ ...w, status: 'backlog' as const }));
       
       // Update historical data
