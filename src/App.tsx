@@ -8,7 +8,7 @@ import {
   Target, Activity, Zap, Play, Clock, CheckCircle2, 
   ChevronRight, Info, LayoutDashboard, ListTodo, 
   CalendarDays, Trophy, BrainCircuit, Dumbbell, 
-  X, Check, Orbit, Sparkles, Settings, Moon, Sun, Key, LogIn, LogOut, Download, Upload
+  X, Check, Orbit, Sparkles, Settings, Moon, Sun, Key, Download
 } from 'lucide-react';
 import { 
   AreaChart, Area, XAxis, YAxis, CartesianGrid, 
@@ -19,9 +19,6 @@ import { twMerge } from 'tailwind-merge';
 import { motion, AnimatePresence } from 'motion/react';
 import { generateEpicBacklog, planSprint, completeSprintRetro } from './services/geminiService';
 import * as XLSX from 'xlsx';
-import { auth, db } from './firebase';
-import { signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from 'firebase/auth';
-import { doc, getDoc, setDoc, collection, writeBatch } from 'firebase/firestore';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -118,73 +115,7 @@ export default function App() {
   const [scheduleText, setScheduleText] = useState('');
   const [retroText, setRetroText] = useState('');
 
-  // Authentication State
-  const [user, setUser] = useState<any>(null);
-
-  // User Auth & Sync Logic
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      setUser(currentUser);
-      if (currentUser) {
-        try {
-          const docRef = doc(db, 'users', currentUser.uid);
-          const snap = await getDoc(docRef);
-          if (snap.exists() && snap.data().epic) {
-             const data = snap.data();
-             if (data.epic) setEpic(data.epic);
-             if (data.age) setAge(data.age);
-             if (data.gender) setGender(data.gender);
-             if (data.weight) setWeight(data.weight);
-             if (data.injuries) setInjuries(data.injuries);
-             if (data.workouts) setWorkouts(data.workouts);
-             if (data.history) setHistory(data.history);
-          }
-        } catch (e) {
-          console.error("Cloud sync failed on load:", e);
-        }
-      }
-    });
-    return () => unsubscribe();
-  }, []);
-
-  // Sync to Cloud automatically on data changes
-  useEffect(() => {
-    if (user && isEpicSet) {
-      const syncToCloud = async () => {
-        try {
-          const docRef = doc(db, 'users', user.uid);
-          // Debounce lightly or just set directly since firebase masks small intermittent writes
-          await setDoc(docRef, { 
-            epic, age, weight, gender, injuries, email: user.email, workouts, history 
-          }, { merge: true });
-        } catch (e) {}
-      };
-      // Simple debounce
-      const timeoutId = setTimeout(syncToCloud, 2000);
-      return () => clearTimeout(timeoutId);
-    }
-  }, [user, epic, age, weight, gender, injuries, workouts, history, isEpicSet]);
-
-  const handleLogin = async () => {
-    try {
-      const provider = new GoogleAuthProvider();
-      await signInWithPopup(auth, provider);
-    } catch (err) {
-      console.error("Login failed:", err);
-    }
-  };
-
-  const handleLogout = async () => {
-    try {
-      await signOut(auth);
-    } catch (err) {
-      console.error("Logout failed:", err);
-    }
-  };
-
   // Excel Logic
-  const fileInputRef = React.useRef<HTMLInputElement>(null);
-
   const handleExportWorkouts = () => {
     const ws = XLSX.utils.json_to_sheet(workouts.map(w => ({
       ID: w.id,
@@ -199,44 +130,6 @@ export default function App() {
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Workouts");
     XLSX.writeFile(wb, "AgileFit_Workouts.xlsx");
-  };
-
-  const handleImportWorkouts = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (evt) => {
-      try {
-        const bstr = evt.target?.result;
-        const wb = XLSX.read(bstr, { type: 'binary' });
-        const wsname = wb.SheetNames[0];
-        const ws = wb.Sheets[wsname];
-        const data = XLSX.utils.sheet_to_json(ws);
-        
-        const importedWorkouts: Workout[] = data.map((row: any) => ({
-          id: row.ID || Math.random().toString(36).substring(2, 8),
-          title: row.Title || "Imported Workout",
-          type: row.Type || "General",
-          duration: parseInt(row.Duration, 10) || 30,
-          description: row.Description || "",
-          status: ['backlog', 'sprint', 'done', 'missed'].includes(row.Status) ? row.Status : 'backlog',
-          assignedDay: row.AssignedDay,
-          sprintNumber: row.SprintNumber ? parseInt(row.SprintNumber, 10) : undefined
-        }));
-        
-        setWorkouts(prev => {
-          // Avoid duplicates by preserving existing and appending new ones if ID doesn't match
-          const existingIds = prev.map(w => w.id);
-          const newWorkouts = importedWorkouts.filter(w => !existingIds.includes(w.id));
-          return [...prev, ...newWorkouts];
-        });
-      } catch (err) {
-        console.error("Error parsing Excel:", err);
-        alert("Failed to parse Excel file. Ensure columns match the export format.");
-      }
-    };
-    reader.readAsBinaryString(file);
-    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   // SPRINT LOGIC
@@ -613,23 +506,6 @@ export default function App() {
           </nav>
 
           <div className="p-4 m-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-white/5">
-            {user ? (
-               <div className="flex flex-col gap-2 mb-3 pb-3 border-b border-slate-200 dark:border-white/5">
-                 <div className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300 font-bold truncate">
-                    <img src={user.photoURL || `https://ui-avatars.com/api/?name=${user.email}`} alt="Avatar" className="w-6 h-6 rounded-full" />
-                    <span className="truncate">{user.displayName || user.email}</span>
-                 </div>
-                 <button onClick={handleLogout} className="text-[10px] uppercase tracking-wider font-bold text-slate-500 hover:text-rose-500 flex items-center gap-1">
-                   <LogOut className="w-3 h-3" /> Sign Out
-                 </button>
-               </div>
-            ) : (
-               <div className="mb-3 pb-3 border-b border-slate-200 dark:border-white/5">
-                  <button onClick={handleLogin} className="w-full py-2 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-500/20 text-xs font-bold rounded-lg transition-colors flex items-center justify-center gap-2">
-                    <LogIn className="w-4 h-4" /> Sign In securely
-                  </button>
-               </div>
-            )}
             <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Current Context</div>
             <div className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300 font-medium mb-1">
               <Target className="w-4 h-4 text-indigo-500" />
@@ -1048,14 +924,10 @@ export default function App() {
                 <div className="flex gap-2">
                   <button 
                     onClick={handleExportWorkouts}
-                    className="flex-1 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-semibold text-sm transition-colors flex items-center justify-center gap-2 border border-slate-200 dark:border-white/5"
+                    className="w-full py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-semibold text-sm transition-colors flex items-center justify-center gap-2 border border-slate-200 dark:border-white/5"
                   >
-                    <Download className="w-4 h-4" /> Export
+                    <Download className="w-4 h-4" /> Export Backlog to Excel
                   </button>
-                  <label className="flex-1 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-semibold text-sm transition-colors flex items-center justify-center gap-2 cursor-pointer border border-slate-200 dark:border-white/5">
-                    <Upload className="w-4 h-4" /> Import
-                    <input type="file" ref={fileInputRef} onChange={handleImportWorkouts} accept=".xlsx" className="hidden" />
-                  </label>
                 </div>
               </div>
 
