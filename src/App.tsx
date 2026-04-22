@@ -103,7 +103,6 @@ export default function App() {
   
   // Settings State
   const [sprintLength, setSprintLength] = useLocalStorage<number>('af_sprintLength', 7);
-  const [theme, setTheme] = useLocalStorage<'light' | 'dark'>('af_theme', 'dark');
 
   // UI State
   const [isLoading, setIsLoading] = useState(false);
@@ -254,6 +253,12 @@ export default function App() {
     const sprintWks = workouts.filter(w => w.sprintNumber === currentSprintNum && (w.status === 'sprint' || w.status === 'done' || w.status === 'missed'));
     const completedCount = sprintWks.filter(w => w.status === 'done').length;
     
+    if (sprintWks.length === 0) {
+      setError("No active workouts found in this sprint. You need to plan a sprint first!");
+      setIsLoading(false);
+      return;
+    }
+
     // Auto-mark remaining 'sprint' items as missed for the retro context
     const retroContextWorkouts = sprintWks.map(w => ({
       title: w.title,
@@ -262,15 +267,20 @@ export default function App() {
 
     try {
       const result = await completeSprintRetro({ retroContextWorkouts, retroText });
-      const newBacklogItems = (result.newWorkouts || []).map((w: any) => ({ ...w, status: 'backlog' as const }));
+      const newBacklogItems = (result.newWorkouts || []).map((w: any) => ({ 
+        ...w, 
+        id: Math.random().toString(36).substring(2, 8),
+        description: (w as any).description || "Custom recovery or adjustment workout suggested by AI.",
+        status: 'backlog' as const 
+      }));
       
       // Update historical data
-      const velocity = Math.round((completedCount / sprintWks.length) * 100) || 0;
+      const velocity = Math.round((completedCount / sprintWks.length) * 100);
       setHistory(prev => [...prev, {
         sprintNumber: currentSprintNum,
         completedWorkouts: completedCount,
         totalWorkouts: sprintWks.length,
-        velocityScore: velocity,
+        velocityScore: isNaN(velocity) ? 0 : velocity,
         insights: result.insights || [],
       }]);
 
@@ -318,7 +328,7 @@ export default function App() {
   // --- UI Components ---
   if (!isEpicSet) {
     return (
-      <div className={theme === 'dark' ? 'dark' : ''}>
+      <div className="">
         <div className="min-h-screen relative overflow-hidden bg-mesh-light dark:bg-mesh-dark animate-mesh flex flex-col items-center justify-center p-6 selection:bg-indigo-500/20 transition-colors duration-1000">
           
           {/* Decorative Animated Blobs */}
@@ -472,7 +482,7 @@ export default function App() {
   const sprintProgress = isSprintActive ? Math.round((activeSprintWorkouts.filter(w=>w.status==='done').length / activeSprintWorkouts.length) * 100) : 0;
 
   return (
-    <div className={theme === 'dark' ? 'dark' : ''}>
+    <div className="">
       <div className="h-screen w-full flex flex-col md:flex-row bg-mesh-light dark:bg-mesh-dark animate-mesh text-slate-800 dark:text-slate-200 font-sans selection:bg-indigo-500/20 transition-colors duration-1000 relative">
         
         {/* Background Blobs for Main App */}
@@ -541,9 +551,6 @@ export default function App() {
           </div>
 
           <div className="p-4 border-t border-slate-200 dark:border-white/10 flex justify-center gap-4">
-             <button onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')} className="p-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full transition-colors">
-               {theme === 'dark' ? <Sun className="w-4 h-4 text-slate-300" /> : <Moon className="w-4 h-4 text-slate-600" />}
-             </button>
              <button onClick={() => setSettingsModalOpen(true)} className="p-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full transition-colors">
                <Settings className="w-4 h-4 text-slate-600 dark:text-slate-300" />
              </button>
@@ -567,9 +574,6 @@ export default function App() {
           {isSprintActive && <span className="absolute top-1 right-2 w-2 h-2 bg-emerald-500 rounded-full"></span>}
         </button>
         <div className="w-[1px] h-8 bg-slate-200 dark:bg-white/10 mx-1"></div>
-        <button onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')} className="p-3 rounded-xl text-slate-500 hover:text-slate-900 dark:text-slate-400">
-           {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-        </button>
         <button onClick={() => setSettingsModalOpen(true)} className="p-3 rounded-xl text-slate-500 hover:text-slate-900 dark:text-slate-400">
           <Settings className="w-5 h-5" />
         </button>
@@ -889,6 +893,7 @@ export default function App() {
               >
                 {isLoading ? <Orbit className="w-5 h-5 animate-spin" /> : 'End Sprint & Update Backlog'}
               </button>
+              {error && <p className="text-red-500 text-xs text-center font-medium mt-3">{error}</p>}
             </div>
           </div>
         </div>
@@ -914,20 +919,6 @@ export default function App() {
                     <span className="text-sm font-bold text-slate-700 dark:text-slate-200 w-12 text-center bg-slate-100 dark:bg-slate-800 rounded-lg py-1">{sprintLength}d</span>
                  </div>
                  <p className="text-[10px] text-slate-500 dark:text-slate-400">Changing this affects the number of days you plan for in future sprints.</p>
-              </div>
-
-
-
-              <div className="space-y-3">
-                 <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Theme Preference</label>
-                 <div className="flex border border-slate-200 dark:border-white/10 rounded-xl overflow-hidden p-1 bg-slate-50 dark:bg-slate-800/50">
-                   <button onClick={() => setTheme('light')} className={cn("flex-1 py-1.5 text-sm font-medium rounded-lg flex items-center justify-center gap-2 transition-all", theme === 'light' ? "bg-white text-slate-900 shadow-sm border border-slate-200" : "text-slate-500 hover:text-slate-700")}>
-                     <Sun className="w-4 h-4" /> Light
-                   </button>
-                   <button onClick={() => setTheme('dark')} className={cn("flex-1 py-1.5 text-sm font-medium rounded-lg flex items-center justify-center gap-2 transition-all", theme === 'dark' ? "bg-slate-700 text-white shadow-sm border border-slate-600" : "text-slate-400 hover:text-slate-200")}>
-                     <Moon className="w-4 h-4" /> Dark
-                   </button>
-                 </div>
               </div>
 
               <div className="space-y-3 pt-4 border-t border-slate-100 dark:border-white/10">

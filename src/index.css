@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   --animate-mesh: mesh 25s ease-in-out infinite alternate;
   --animate-blob: blob 7s infinite;
